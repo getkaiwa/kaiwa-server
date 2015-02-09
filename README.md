@@ -1,2 +1,72 @@
-# otalk-prosody
-Otalk XMPP Server
+# Otalk Prosody
+
+Any XMPP server that supports websockets would work, but Prosody also supports
+some extra features that makes Otalk nicer to use, like message archiving.
+
+It works with PotgreSQL and LDAP.
+
+
+## Installation
+
+1. Install dependencies.
+
+        add-apt-repository -y ppa:patrick-georgi/ppa
+        apt-get update
+        apt-get install postgresql-client lua5.1 liblua5.1-dev lua-bitop lua-bitop-dev lua-sec lua-ldap lua-dbi-postgresql lua-expat lua-socket lua-filesystem lua-zlib lua-event libidn11-dev libssl-dev mercurial make openssl
+
+2. Install Prosody from sources
+
+        groupadd prosody
+        useradd -g prosody prosody
+        hg clone http://hg.prosody.im/trunk prosody-trunk
+        cd prosody-trunk && ./configure --ostype=debian --prefix=/usr --sysconfdir=/etc/prosody --datadir=/var/lib/prosody --require-config
+        make && make install
+        openssl req -new -x509 -days 365 -nodes -out "/etc/prosody/certs/localhost.crt" -newkey rsa:2048 -keyout "/etc/prosody/certs/localhost.key" -subj "/C=FR/ST=/L=Paris/O=Orga/CN=localhost"
+        chown prosody:prosody /etc/prosody/certs/*
+        ln -s /etc/prosody/certs/localhost.key "/etc/prosody/certs/localhost.key"
+        RUN ln -s /etc/prosody/certs/localhost.crt "/etc/prosody/certs/localhost.crt"
+        mkdir /etc/prosody/conf.d /var/log/prosody
+        chown -R prosody:prosody /etc/prosody /var/lib/prosody /var/log/prosody
+        mkdir -p /var/run/prosody
+        chown prosody.prosody /var/run/prosody
+
+3. Install the included modules
+
+        cp -r modules/* /usr/lib/prosody/modules/
+        chmod 755 /usr/lib/prosody/modules/ldap/
+        chmod 755 /usr/lib/prosody/modules/mod_mam/
+
+4. Configure Prosody
+
+   First edit the included template config to replace the HOST value, and set any other desired options.
+
+        cp -f /app/config/prosody.cfg.lua /etc/prosody/prosody.cfg.lua
+        chmod 755 /etc/prosody/prosody.cfg.lua
+        cp -f /app/config/prosody-ldap.cfg.lua /etc/prosody/prosody-ldap.cfg.lua
+        chmod 755 /etc/prosody/prosody-ldap.cfg.lua
+
+5. Allow access to port 5281. Proxying to hide the port would be best (eg, use `wss://HOST/xmpp-websocket`).
+
+   If you don't proxy the WS connections, be sure to visit https://HOST:5281/xmpp-websocket first so that
+   any client certificate requests are fulfilled. Otherwise, connecting to otalk might fail because the
+   browser closes the websocket connection if prompted for client certs.
+
+
+By default, You will need to ensure that these ports are open on your server:
+
+- 5222 (XMPP client to server connections)
+- 5269 (XMPP server to server connections)
+- 5280/5281 HTTP and WebSocket connection (5281 for SSL versions)
+- 3478 UDP (STUN/TURN)
+
+You should also setup DNS SRV records:
+
+- `_xmpp-client._tcp.HOST 3600 IN SRV 0 10 5222 HOST`
+- `_xmpp-server._tcp.HOST 3600 IN SRV 0 10 5269 HOST`
+
+If you use the `mod_http_altconnect` module, Otalk will be able to auto-discover the WebSocket connection
+endpoint for your server, if you make https://HOST/.well-known/host-meta served by Prosody.
+
+One way to do this is to make Prosody act as your HTTP server. An example nginx config for doing that
+is included.
+
