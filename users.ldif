@@ -1,0 +1,43 @@
+dn: ou=users,dc=example.com
+objectClass: organizationalUnit
+ou: users
+
+dn: ou=groups,dc=example.com
+objectClass: organizationalunit
+ou: groups
+
+dn: cn=digicoop,ou=groups,dc=example.com
+objectClass: groupOfNames
+description: ExampleDesc
+member: uid=user1,ou=users,dc=example.com
+cn: digicoop
+
+dn: cn=admins,ou=groups,dc=example.com
+objectClass: groupOfNames
+description: Admins
+member: uid=admin,ou=users,dc=example.com
+cn: admins
+
+dn: uid=user1,ou=users,dc=example.com
+objectClass: organizationalPerson
+objectClass: person
+objectClass: inetOrgPerson
+uid: user1
+sn: user1
+givenName: user1
+cn: user1
+displayName: user1
+userPassword: user1pass
+mail: user1@example.com
+
+dn: uid=admin,ou=users,dc=example.com
+objectClass: organizationalPerson
+objectClass: person
+objectClass: inetOrgPerson
+uid: admin
+sn: Admin
+givenName: Admin
+cn: Admin
+displayName: Admin
+userPassword: adminpass
+mail: admin@example.com
