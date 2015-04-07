@@ -9,33 +9,74 @@ It works with PotgreSQL and LDAP.
 
 1. Start a PostgreSQL Docker image
 
-        docker pull orchardup/postgresql
-        docker run -d --name postgres -p 5432:5432 -e POSTGRESQL_USER=kaiwa -e POSTGRESQL_PASS=mypassword orchardup/postgresql
+```bash
+$ docker pull orchardup/postgresql
+$ docker run -d \
+     --name postgres \
+     -p 5432:5432 \
+     -e POSTGRESQL_USER=kaiwa \
+     -e POSTGRESQL_PASS=mypassword \
+     orchardup/postgresql
+```
 
 2. Start and configure an LDAP Docker image
-
-        docker pull nickstenning/slapd
-        docker run -d --name ldap -p 389:389 -e LDAP_DOMAIN=myorga -e LDAP_ORGANISATION=MyOrganisation -e LDAP_ROOTPASS=mypassword nickstenning/slapd
-        wget https://raw.githubusercontent.com/digicoop/kaiwa-server/master/users.ldif
-        sed 's/admin@example.com/admin@myorga.com/' -i users.ldif
-        sed 's/user1@example.com/bob@myorga.com/' -i users.ldif
-        sed 's/adminpass/mypassword/' -i users.ldif
-        sed 's/user1pass/mypassword/' -i users.ldif
-        sed 's/example.com/myorga/' -i users.ldif
-        sed 's/ExampleDesc/MyOrgaDesc/' -i users.ldif
-        sed 's/user1/bob/' -i users.ldif
-        ldapadd -h localhost -x -D cn=admin,dc=myorga -w mypassword -f users.ldif
+```bash
+$ docker pull nickstenning/slapd
+$ docker run -d \
+     --name ldap \
+     -p 389:389 \
+     -e LDAP_DOMAIN=myorga \
+     -e LDAP_ORGANISATION=MyOrganisation \
+     -e LDAP_ROOTPASS=mypassword \
+     nickstenning/slapd
+$ wget https://raw.githubusercontent.com/digicoop/kaiwa-server/master/users.ldif
+$ sed 's/admin@example.com/admin@myorga.com/' -i users.ldif
+$ sed 's/user1@example.com/bob@myorga.com/' -i users.ldif
+$ sed 's/adminpass/mypassword/' -i users.ldif
+$ sed 's/user1pass/mypassword/' -i users.ldif
+$ sed 's/example.com/myorga/' -i users.ldif
+$ sed 's/ExampleDesc/MyOrgaDesc/' -i users.ldif
+$ sed 's/user1/bob/' -i users.ldif
+$ ldapadd -h localhost -x -D cn=admin,dc=myorga -w mypassword -f users.ldif
+```
 
 3. Start a Kaiwa-server Docker image
-
-        docker pull sebu77/kaiwa-server
-        docker run -d -p 5222:5222 -p 5269:5269 -p 5280:5280 -p 5281:5281 -p 3478:3478/udp --name kaiwa-server --link postgres:postgres --link ldap:ldap -e XMPP_DOMAIN=myorga.com -e DB_NAME=kaiwa -e DB_USER=kaiwa -e DB_PWD=mypassword -e LDAP_BASE=dc=myorga -e LDAP_DN=cn=admin,dc=myorga -e LDAP_PWD=mypassword -e LDAP_GROUP=myorgagroup sebu77/kaiwa-server
-
+```bash
+$ docker pull sebu77/kaiwa-server
+$ docker run -d \
+     -p 5222:5222 -p 5269:5269 -p 5280:5280 -p 5281:5281 -p 3478:3478/udp \
+     --name kaiwa-server \
+     --link postgres:postgres \
+     --link ldap:ldap \
+     -e XMPP_DOMAIN=myorga.com \
+     -e DB_NAME=kaiwa \
+     -e DB_USER=kaiwa \
+     -e DB_PWD=mypassword \
+     -e LDAP_BASE=dc=myorga \
+     -e LDAP_DN=cn=admin,dc=myorga \
+     -e LDAP_PWD=mypassword \
+     -e LDAP_GROUP=myorgagroup \
+     sebu77/kaiwa-server
+```
 4. Start a Kaiwa Docker image
-
-        docker pull sebu77/kaiwa
-        docker run -d -p 80:8000 --name kaiwa --link ldap:ldap -e VIRTUAL_HOST=localhost -e VIRTUAL_PORT=80 -e XMPP_NAME=" + data.org + " -e XMPP_DOMAIN=myorga.com -e XMPP_WSS=ws://myorga.com:5280/xmpp-websocket -e XMPP_MUC=chat.myorga.com -e XMPP_STARTUP=groupchat/home%40chat.myorga.com -e XMPP_ADMIN=admin -e LDAP_BASE=dc=myorga -e LDAP_DN=cn=admin,dc=myorga -e LDAP_PWD=mypassword -e LDAP_GROUP=myorgagroup sebu77/kaiwa
-
+```bash
+$ docker pull sebu77/kaiwa
+$ docker run -d \
+     -p 80:8000 \
+     --name kaiwa \
+     --link ldap:ldap \
+     -e XMPP_NAME=" + data.org + " \
+     -e XMPP_DOMAIN=myorga.com \
+     -e XMPP_WSS=ws://myorga.com:5280/xmpp-websocket \
+     -e XMPP_MUC=chat.myorga.com \
+     -e XMPP_STARTUP=groupchat/home%40chat.myorga.com \
+     -e XMPP_ADMIN=admin \
+     -e LDAP_BASE=dc=myorga \
+     -e LDAP_DN=cn=admin,dc=myorga \
+     -e LDAP_PWD=mypassword \
+     -e LDAP_GROUP=myorgagroup \
+     sebu77/kaiwa
+```
 ## Installation from source
 
 1. Install dependencies.
