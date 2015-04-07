@@ -20,6 +20,7 @@ $ docker run -d \
 ```
 
 2. Start and configure an LDAP Docker image
+
 ```bash
 $ docker pull nickstenning/slapd
 $ docker run -d \
@@ -41,6 +42,7 @@ $ ldapadd -h localhost -x -D cn=admin,dc=myorga -w mypassword -f users.ldif
 ```
 
 3. Start a Kaiwa-server Docker image
+
 ```bash
 $ docker pull sebu77/kaiwa-server
 $ docker run -d \
@@ -58,7 +60,9 @@ $ docker run -d \
      -e LDAP_GROUP=myorgagroup \
      sebu77/kaiwa-server
 ```
+
 4. Start a Kaiwa Docker image
+
 ```bash
 $ docker pull sebu77/kaiwa
 $ docker run -d \
@@ -77,6 +81,7 @@ $ docker run -d \
      -e LDAP_GROUP=myorgagroup \
      sebu77/kaiwa
 ```
+
 ## Installation from source
 
 1. Install dependencies.
