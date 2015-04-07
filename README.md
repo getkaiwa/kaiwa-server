@@ -1,7 +1,7 @@
-# Otalk Prosody
+# Kaiwa server
 
 Any XMPP server that supports websockets would work, but Prosody also supports
-some extra features that makes Otalk nicer to use, like message archiving.
+some extra features that makes Kaiwa nicer to use, like message archiving.
 
 It works with PotgreSQL and LDAP.
 
@@ -48,7 +48,7 @@ It works with PotgreSQL and LDAP.
 5. Allow access to port 5281. Proxying to hide the port would be best (eg, use `wss://HOST/xmpp-websocket`).
 
    If you don't proxy the WS connections, be sure to visit https://HOST:5281/xmpp-websocket first so that
-   any client certificate requests are fulfilled. Otherwise, connecting to otalk might fail because the
+   any client certificate requests are fulfilled. Otherwise, connecting to Kaiwa might fail because the
    browser closes the websocket connection if prompted for client certs.
 
 
@@ -64,7 +64,7 @@ You should also setup DNS SRV records:
 - `_xmpp-client._tcp.HOST 3600 IN SRV 0 10 5222 HOST`
 - `_xmpp-server._tcp.HOST 3600 IN SRV 0 10 5269 HOST`
 
-If you use the `mod_http_altconnect` module, Otalk will be able to auto-discover the WebSocket connection
+If you use the `mod_http_altconnect` module, Kaiwa will be able to auto-discover the WebSocket connection
 endpoint for your server, if you make https://HOST/.well-known/host-meta served by Prosody.
 
 One way to do this is to make Prosody act as your HTTP server. An example nginx config for doing that
