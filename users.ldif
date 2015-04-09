@@ -6,11 +6,11 @@ dn: ou=groups,dc=example.com
 objectClass: organizationalunit
 ou: groups
 
-dn: cn=digicoop,ou=groups,dc=example.com
+dn: cn=exampleGroup,ou=groups,dc=example.com
 objectClass: groupOfNames
 description: ExampleDesc
 member: uid=user1,ou=users,dc=example.com
-cn: digicoop
+cn: exampleGroup
 
 dn: cn=admins,ou=groups,dc=example.com
 objectClass: groupOfNames
