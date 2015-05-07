@@ -9,10 +9,11 @@ ENV DB_NAME docker
 ENV DB_USER docker
 ENV DB_PWD docker
 
-ENV LDAP_BASE dc=example.com
-ENV LDAP_DN cn=admin,dc=example.com
-ENV LDAP_PWD password
+ENV LDAP_DN ""
+ENV LDAP_PWD ""
 ENV LDAP_GROUP mygroup
+ENV LDAP_USER_BASE ou=users,dc=example.com
+ENV LDAP_GROUP_BASE ou=groups,dc=example.com
 
 ENV SSL_CRT ""
 ENV SSL_KEY ""
