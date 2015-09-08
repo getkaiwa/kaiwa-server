@@ -14,14 +14,14 @@ ldap = {
     bind_password = '{{LDAP_PWD}}',           -- Bind password (optional if anonymous bind is supported)
 
     user = {
-      basedn        = 'ou=users,{{LDAP_BASE}}',                      -- The base DN where user records can be found
+      basedn        = '{{LDAP_USER_BASE}}',                      -- The base DN where user records can be found
       filter        = '(&(objectClass=person)(!(uid=seven)))', -- Filter expression to find user records under basedn
       usernamefield = 'uid',                                         -- The field that contains the user's ID (this will be the username portion of the JID)
       namefield     = 'cn',                                          -- The field that contains the user's full name (this will be the alias found in the roster)
     },
 
     groups = {
-      basedn      = 'ou=groups,{{LDAP_BASE}}',     -- The base DN where group records can be found
+      basedn      = '{{LDAP_GROUP_BASE}}',     -- The base DN where group records can be found
       memberfield = 'member',                      -- The field that contains user ID records for this group (each member must have a corresponding entry under the user basedn with the same value in usernamefield)
       namefield   = 'cn',                          -- The field that contains the group's name (used for matching groups in LDAP to group definitions below)
 

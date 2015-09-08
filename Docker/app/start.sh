@@ -42,9 +42,18 @@ echo "Configuring prosody-ldap.cfg.lua..."
 sed 's/{{XMPP_DOMAIN}}/'"${XMPP_DOMAIN}"'/' -i /app/config/prosody-ldap.cfg.lua
 
 sed 's/{{LDAP_HOST}}/'"${LDAP_PORT_389_TCP_ADDR}"'/' -i /app/config/prosody-ldap.cfg.lua
-sed 's/{{LDAP_BASE}}/'"${LDAP_BASE}"'/' -i /app/config/prosody-ldap.cfg.lua
-sed 's/{{LDAP_DN}}/'"${LDAP_DN}"'/' -i /app/config/prosody-ldap.cfg.lua
-sed 's/{{LDAP_PWD}}/'"${LDAP_PWD}"'/' -i /app/config/prosody-ldap.cfg.lua
+if [ -n "${LDAP_DN}" ]; then
+    sed 's/{{LDAP_DN}}/'"${LDAP_DN}"'/' -i /app/config/prosody-ldap.cfg.lua
+else
+    sed '/{{LDAP_DN}}/d' -i /app/config/prosody-ldap.cfg.lua
+fi
+if [ -n "${LDAP_PWD}" ]; then
+    sed 's/{{LDAP_PWD}}/'"${LDAP_PWD}"'/' -i /app/config/prosody-ldap.cfg.lua
+else
+    sed '/{{LDAP_PWD}}/d' -i /app/config/prosody-ldap.cfg.lua
+fi
+sed 's/{{LDAP_USER_BASE}}/'"${LDAP_USER_BASE}"'/' -i /app/config/prosody-ldap.cfg.lua
+sed 's/{{LDAP_GROUP_BASE}}/'"${LDAP_GROUP_BASE}"'/' -i /app/config/prosody-ldap.cfg.lua
 sed 's/{{LDAP_GROUP}}/'"${LDAP_GROUP}"'/' -i /app/config/prosody-ldap.cfg.lua
 
 cp -f /app/config/prosody-ldap.cfg.lua /etc/prosody/prosody-ldap.cfg.lua
