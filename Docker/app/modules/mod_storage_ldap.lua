@@ -13,21 +13,19 @@
 -- Constants and such --
 ----------------------------------------
 
-local setmetatable   = setmetatable;
-local storagemanager = require "core.storagemanager"
+local setmetatable = setmetatable;
 local datamanager    = require "util.datamanager";
-local ldap           = module:require 'ldap';
-local vcardlib       = module:require 'ldap/vcard';
-local st             = require 'util.stanza';
-local gettime        = require 'socket'.gettime;
+local ldap         = module:require 'ldap';
+local vcardlib     = module:require 'ldap/vcard';
+local st           = require 'util.stanza';
+local gettime      = require 'socket'.gettime;
 
 if not ldap then
     return;
 end
 
-local CACHE_EXPIRY   = 300;
-local params         = module:get_option('ldap');
-local defaultstorage = module:get_option('default_storage') or 'internal';
+local CACHE_EXPIRY = 300;
+local params       = module:get_option('ldap');
 
 ----------------------------------------
 -- Utility Functions --
@@ -111,7 +109,6 @@ function adapters.roster:get(username)
     local usernamefield = params.user.usernamefield;
     local memberfield = params.groups.memberfield;
     local namefield   = params.groups.namefield;
-
     local filter      = '(|(' .. memberfield .. '=' .. tostring(username) .. ')('
       .. memberfield .. '=' .. usernamefield .. '=' .. tostring(username) .. ',' .. params.user.basedn .. '))';
 

@@ -1,3 +1,15 @@
+-- XEP-0198: Stream Management for Prosody IM
+--
+-- Copyright (C) 2010-2015 Matthew Wild
+-- Copyright (C) 2010 Waqas Hussain
+-- Copyright (C) 2012-2015 Kim Alvefur
+-- Copyright (C) 2012 Thijs Alkemade
+-- Copyright (C) 2014 Florian Zeitz
+--
+-- This project is MIT/X11 licensed. Please see the
+-- COPYING file in the source package for more information.
+--
+
 local st = require "util.stanza";
 local uuid_generate = require "util.uuid".generate;
 
@@ -58,13 +70,13 @@ module:hook("s2s-stream-features",
 		end);
 
 local function outgoing_stanza_filter(stanza, session)
-	local is_stanza = stanza.attr and not stanza.attr.xmlns;
+	local is_stanza = stanza.attr and not stanza.attr.xmlns and not stanza.name:find":";
 	if is_stanza and not stanza._cached then -- Stanza in default stream namespace
 		local queue = session.outgoing_stanza_queue;
 		local cached_stanza = st.clone(stanza);
 		cached_stanza._cached = true;
 
-		if cached_stanza and cached_stanza:get_child("delay", xmlns_delay) == nil then
+		if cached_stanza and cached_stanza.name ~= "iq" and cached_stanza:get_child("delay", xmlns_delay) == nil then
 			cached_stanza = cached_stanza:tag("delay", { xmlns = xmlns_delay, from = session.host, stamp = datetime.datetime()});
 		end
 
@@ -112,8 +124,8 @@ end
 local function wrap_session_in(session, resume)
 	if not resume then
 		session.handled_stanza_count = 0;
-		add_filter(session, "stanzas/in", count_incoming_stanzas, 1000);
 	end
+	add_filter(session, "stanzas/in", count_incoming_stanzas, 1000);
 
 	return session;
 end
@@ -266,7 +278,7 @@ module:hook("pre-resource-unbind", function (event)
 				-- (for example, the client may have bound a new resource and
 				-- started a new smacks session, or not be using smacks)
 				local curr_session = full_sessions[session.full_jid];
-				if false and session.destroyed then
+				if session.destroyed then
 					session.log("debug", "The session has already been destroyed");
 				elseif curr_session and curr_session.resumption_token == resumption_token
 				-- Check the hibernate time still matches what we think it is,
@@ -285,6 +297,18 @@ module:hook("pre-resource-unbind", function (event)
 
 	end
 end);
+
+local function handle_s2s_destroyed(event)
+	local session = event.session;
+	local queue = session.outgoing_stanza_queue;
+	if queue and #queue > 0 then
+		session.log("warn", "Destroying session with %d unacked stanzas", #queue);
+		handle_unacked_stanzas(session);
+	end
+end
+
+module:hook("s2sout-destroyed", handle_s2s_destroyed);
+module:hook("s2sin-destroyed", handle_s2s_destroyed);
 
 function handle_resume(session, stanza, xmlns_sm)
 	if session.full_jid then
@@ -315,7 +339,9 @@ function handle_resume(session, stanza, xmlns_sm)
 		original_session.ip = session.ip;
 		original_session.conn = session.conn;
 		original_session.send = session.send;
-		original_session.send.filter = original_session.filter;
+		original_session.filter = session.filter;
+		original_session.filter.session = original_session;
+		original_session.filters = session.filters;
 		original_session.stream = session.stream;
 		original_session.secure = session.secure;
 		original_session.hibernating = nil;
@@ -351,3 +377,18 @@ function handle_resume(session, stanza, xmlns_sm)
 end
 module:hook_stanza(xmlns_sm2, "resume", function (session, stanza) return handle_resume(session, stanza, xmlns_sm2); end);
 module:hook_stanza(xmlns_sm3, "resume", function (session, stanza) return handle_resume(session, stanza, xmlns_sm3); end);
+
+local function handle_read_timeout(event)
+	local session = event.session;
+	if session.smacks then
+		if session.awaiting_ack then
+			return false; -- Kick the session
+		end
+		(session.sends2s or session.send)(st.stanza("r", { xmlns = session.smacks }));
+		session.awaiting_ack = true;
+		return true;
+	end
+end
+
+module:hook("s2s-read-timeout", handle_read_timeout);
+module:hook("c2s-read-timeout", handle_read_timeout);
