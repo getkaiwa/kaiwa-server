@@ -9,6 +9,7 @@ ENV DB_NAME docker
 ENV DB_USER docker
 ENV DB_PWD docker
 
+ENV LDAP_HOST container
 ENV LDAP_DN ""
 ENV LDAP_PWD ""
 ENV LDAP_GROUP mygroup

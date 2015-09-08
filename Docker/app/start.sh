@@ -4,6 +4,7 @@
 #  - DB_NAME
 #  - DB_USER
 #  - DB_PWD
+#  - LDAP_HOST
 #  - LDAP_BASE
 #  - LDAP_DN
 #  - LDAP_PWD
@@ -41,7 +42,10 @@ echo "Configuring prosody-ldap.cfg.lua..."
 
 sed 's/{{XMPP_DOMAIN}}/'"${XMPP_DOMAIN}"'/' -i /app/config/prosody-ldap.cfg.lua
 
-sed 's/{{LDAP_HOST}}/'"${LDAP_PORT_389_TCP_ADDR}"'/' -i /app/config/prosody-ldap.cfg.lua
+if [ ${LDAP_HOST} = "container" ]; then
+  LDAP_HOST=${LDAP_PORT_389_TCP_ADDR}
+fi
+sed 's/{{LDAP_HOST}}/'"${LDAP_HOST}"'/' -i /app/config/prosody-ldap.cfg.lua
 if [ -n "${LDAP_DN}" ]; then
     sed 's/{{LDAP_DN}}/'"${LDAP_DN}"'/' -i /app/config/prosody-ldap.cfg.lua
 else
