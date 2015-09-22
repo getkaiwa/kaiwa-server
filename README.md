@@ -7,7 +7,7 @@ It works with PostgreSQL and LDAP.
 
 ## Installation with Docker
 
-1. Start a PostgreSQL Docker image
+1\. Start a PostgreSQL Docker image
 
 ```bash
 $ docker pull orchardup/postgresql
@@ -19,7 +19,7 @@ $ docker run -d \
      orchardup/postgresql
 ```
 
-2. Start and configure an LDAP Docker image
+2\. Start and configure an LDAP Docker image
 
 ```bash
 $ docker pull nickstenning/slapd
@@ -41,7 +41,7 @@ $ sed 's/user1/bob/' -i users.ldif
 $ ldapadd -h localhost -x -D cn=admin,dc=myorga -w mypassword -f users.ldif
 ```
 
-3. Start a Kaiwa-server Docker image
+3\. Start a Kaiwa-server Docker image
 
 ```bash
 $ docker pull sebu77/kaiwa-server
@@ -61,7 +61,7 @@ $ docker run -d \
      sebu77/kaiwa-server
 ```
 
-4. Start a Kaiwa Docker image
+4\. Start a Kaiwa Docker image
 
 ```bash
 $ docker pull sebu77/kaiwa
