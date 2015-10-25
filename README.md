@@ -109,8 +109,7 @@ $ docker run -d \
 3. Install the included modules
 
         cp -r modules/* /usr/lib/prosody/modules/
-        chmod 755 /usr/lib/prosody/modules/ldap/
-        chmod 755 /usr/lib/prosody/modules/mod_mam/
+        chmod -R 755 /usr/lib/prosody/modules/
 
 4. Configure Prosody
 
