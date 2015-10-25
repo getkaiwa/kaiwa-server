@@ -3,7 +3,7 @@
 --
 -- This file is MIT/X11 licensed.
 
-local xmlns_mam     = "urn:xmpp:mam:tmp";
+local xmlns_mam     = "urn:xmpp:mam:0";
 local xmlns_delay   = "urn:xmpp:delay";
 local xmlns_forward = "urn:xmpp:forward:0";
 local muc_form_enable_logging = "muc#roomconfig_enablelogging"
@@ -17,7 +17,6 @@ local it = require"util.iterators";
 
 -- Support both old and new MUC code
 --local mod_muc = module:depends"muc";
---local room_mt = mod_muc.room_mt;
 local rooms;-- = rawget(mod_muc, "rooms");
 local each_room = --[[rawget(mod_muc, "each_room") or ]]function() return it.values(rooms); end;
 local new_muc = not rooms;
@@ -138,13 +137,14 @@ local query_form = dataform {
 };
 
 -- Serve form
-module:hook("iq-get/self/"..xmlns_mam..":query", function(event)
+module:hook("iq-get/bare/"..xmlns_mam..":query", function(event)
 	local origin, stanza = event.origin, event.stanza;
-	return origin.send(st.reply(stanza):add_child(query_form:form()));
+	origin.send(st.reply(stanza):add_child(query_form:form()));
+	return true;
 end);
 
 -- Handle archive queries
-module:hook("iq/bare/"..xmlns_mam..":query", function(event)
+module:hook("iq-set/bare/"..xmlns_mam..":query", function(event)
 	local origin, stanza = event.origin, event.stanza;
 	local room = stanza.attr.to;
 	local room_node = jid_split(room);
@@ -153,7 +153,8 @@ module:hook("iq/bare/"..xmlns_mam..":query", function(event)
 
 	local room_obj = get_room_from_jid(room);
 	if not room_obj then
-		return origin.send(st.error_reply(stanza, "cancel", "item-not-found"))
+		origin.send(st.error_reply(stanza, "cancel", "item-not-found"))
+		return true;
 	end
 	local from = jid_bare(orig_from);
 
@@ -161,14 +162,24 @@ module:hook("iq/bare/"..xmlns_mam..":query", function(event)
 	local from_affiliation = room_obj:get_affiliation(from);
 	if from_affiliation == "outcast" -- banned
 		or room_obj:get_members_only() and not from_affiliation then -- members-only, not a member
-		return origin.send(st.error_reply(stanza, "auth", "forbidden"))
+		origin.send(st.error_reply(stanza, "auth", "forbidden"))
+		return true;
 	end
 
 	local qid = query.attr.queryid;
 
 	-- Search query parameters
-	local qstart = query:get_child_text("start");
-	local qend = query:get_child_text("end");
+	local qstart, qend;
+	local form = query:get_child("x", "jabber:x:data");
+	if form then
+		local err;
+		form, err = query_form:data(form);
+		if err then
+			origin.send(st.error_reply(stanza, "modify", "bad-request", select(2, next(err))));
+			return true;
+		end
+		qstart, qend = form["start"], form["end"];
+	end
 
 	if qstart or qend then -- Validate timestamps
 		local vstart, vend = (qstart and timestamp_parse(qstart)), (qend and timestamp_parse(qend))
@@ -182,35 +193,43 @@ module:hook("iq/bare/"..xmlns_mam..":query", function(event)
 	-- RSM stuff
 	local qset = rsm.get(query);
 	local qmax = m_min(qset and qset.max or default_max_items, max_max_items);
-	local reverse = qset and qset.before and true or false;
+	local reverse = qset and qset.before or false;
 
 	local before, after = qset and qset.before, qset and qset.after;
 	if type(before) ~= "string" then before = nil; end
 
-	local query = {
+	-- Load all the data!
+	local data, err = archive:find(room_node, {
 		start = qstart; ["end"] = qend; -- Time range
-		limit = qmax;
+		limit = qmax + 1;
 		before = before; after = after;
 		reverse = reverse;
 		total = true;
 		with = "message<groupchat";
-	}
-	module:log("debug", require"util.serialization".serialize(query));
-
-	-- Load all the data!
-	local data, err = archive:find(room_node, query);
+	});
 
 	if not data then
-		return origin.send(st.error_reply(stanza, "cancel", "internal-server-error"));
+		origin.send(st.error_reply(stanza, "cancel", "internal-server-error"));
+		return true;
 	end
-	local count = err;
+	local total = err;
 
+	origin.send(st.reply(stanza))
 	local msg_reply_attr = { to = stanza.attr.from, from = stanza.attr.to };
 
+	local results = {};
+
 	-- Wrap it in stuff and deliver
-	local fwd_st, first, last;
+	local first, last;
+	local count = 0;
+	local complete = "true";
 	for id, item, when in data do
-		fwd_st = st.message(msg_reply_attr)
+		count = count + 1;
+		if count > qmax then
+			complete = nil;
+			break;
+		end
+		local fwd_st = st.message(msg_reply_attr)
 			:tag("result", { xmlns = xmlns_mam, queryid = qid, id = id })
 				:tag("forwarded", { xmlns = xmlns_forward })
 					:tag("delay", { xmlns = xmlns_delay, stamp = timestamp(when) }):up();
@@ -224,18 +243,27 @@ module:hook("iq/bare/"..xmlns_mam..":query", function(event)
 		if not first then first = id; end
 		last = id;
 
-		origin.send(fwd_st);
+		if reverse then
+			results[count] = fwd_st;
+		else
+			origin.send(fwd_st);
+		end
 	end
+	if reverse then
+		for i = #results, 1, -1 do
+			origin.send(results[i]);
+		end
+	end
+
 	-- That's all folks!
 	module:log("debug", "Archive query %s completed", tostring(qid));
 
 	if reverse then first, last = last, first; end
-
-	local reply = st.reply(stanza);
-	reply:query(xmlns_mam)
-		:add_child(rsm.generate {
-			first = first, last = last, count = count });
-	origin.send(reply);
+	origin.send(st.message(msg_reply_attr)
+		:tag("fin", { xmlns = xmlns_mam, queryid = qid, complete = complete })
+			:add_child(rsm.generate {
+				first = first, last = last, count = total }));
+	return true;
 end);
 
 module:hook("muc-get-history", function (event)
@@ -245,18 +273,16 @@ module:hook("muc-get-history", function (event)
 	local maxstanzas = event.maxstanzas;
 	local maxchars = event.maxchars;
 	local since = event.since;
-	local before = event.before;
 	local to = event.to;
-	local reverse = event.reverse;
 
 	-- Load all the data!
 	local query = {
-		limit = maxstanzas or max_history_length;
-		start = since; ["end"] = before; -- Time range
+		limit = m_min(maxstanzas or 20, max_history_length);
+		start = since;
 		reverse = true;
 		with = "message<groupchat";
 	}
-	module:log("debug", require"util.serialization".serialize(query));
+	module:log("debug", require"util.serialization".serialize(query))
 	local data, err = archive:find(jid_split(room_jid), query);
 
 	if not data then
@@ -264,30 +290,22 @@ module:hook("muc-get-history", function (event)
 		return
 	end
 
-	local chars = 0;
 	local history, i = {}, 1;
 
-	for id, item, when in data do
+	for _, item, when in data do
 		item.attr.to = to;
 		item:tag("delay", { xmlns = "urn:xmpp:delay", from = room_jid, stamp = timestamp(when) }):up(); -- XEP-0203
 		if maxchars then
-			chars = #tostring(item);
-			if chars + charcount > maxchars then
+			local chars = #tostring(item);
+			if maxchars - chars < 0 then
 				break
 			end
-			charcount = charcount + chars;
+			maxchars = maxchars - chars;
 		end
 		history[i], i = item, i+1;
 	end
-	if reverse then
-		i = 0;
-	end
-	function event:next_stanza()
-	if reverse then
-		i = i + 1;
-	else
+	function event.next_stanza()
 		i = i - 1;
-	end
 		return history[i];
 	end
 	return true;
@@ -295,7 +313,7 @@ end, 1);
 
 function send_history(self, to, stanza)
 	local maxchars, maxstanzas, seconds, since;
-	local history_tag = stanza:find("{http://jabber.org/protocol/muc}x/history");
+	local history_tag = stanza:find("{http://jabber.org/protocol/muc}x/history")
 	if history_tag then
 		local history_attr = history_tag.attr;
 		maxchars = tonumber(history_attr.maxchars);
@@ -316,7 +334,6 @@ function send_history(self, to, stanza)
 		maxchars = maxchars, maxstanzas = maxstanzas, since = since;
 		next_stanza = function() end; -- events should define this iterator
 	};
-
 	module:fire_event("muc-get-history", event);
 
 	for msg in event.next_stanza, event do
@@ -326,7 +343,6 @@ end
 
 -- Handle messages
 function save_to_history(self, stanza)
-	local orig_to = stanza.attr.to;
 	local room = jid_split(self.jid);
 
 	-- Policy check
@@ -345,16 +361,17 @@ module:hook("muc-broadcast-message", function (event)
 	local room, stanza = event.room, event.stanza;
 	if stanza:get_child("body") then
 		save_to_history(room, stanza);
-		stanza:tag("delay", { xmlns = xmlns_delay, from = room.jid, stamp = timestamp(time_now()) }):up();
 	end
 end);
 
-module:hook("muc-occupant-joined", function (event)
-	save_to_history(event.room, st.stanza("presence", { from = event.nick }));
-end);
-module:hook("muc-occupant-left", function (event)
-	save_to_history(event.room, st.stanza("presence", { type = "unavailable", from = event.nick }));
-end);
+if module:get_option_boolean("muc_log_presences", true) then
+	module:hook("muc-occupant-joined", function (event)
+		save_to_history(event.room, st.stanza("presence", { from = event.nick }));
+	end);
+	module:hook("muc-occupant-left", function (event)
+		save_to_history(event.room, st.stanza("presence", { type = "unavailable", from = event.nick }));
+	end);
+end
 
 module:hook("muc-room-destroyed", function(event)
 	local username = jid_split(event.room.jid);
@@ -365,3 +382,7 @@ end);
 -- And role/affiliation changes?
 
 module:add_feature(xmlns_mam);
+
+module:hook("muc-disco#info", function(event)
+	event.reply:tag("feature", {var=xmlns_mam}):up();
+end);

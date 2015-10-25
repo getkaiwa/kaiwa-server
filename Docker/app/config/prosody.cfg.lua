@@ -199,4 +199,4 @@ log = {
 -- Component definitions in their own config files. This line includes
 -- all config files in /etc/prosody/conf.d/
 
-Include "conf.d/domain.cfg.lua"
+Include "conf.d/*.cfg.lua"

@@ -4,7 +4,7 @@
 -- This file is MIT/X11 licensed.
 
 local st = require"util.stanza";
-local xmlns_mam = "urn:xmpp:mam:tmp";
+local xmlns_mam = "urn:xmpp:mam:0";
 
 local global_default_policy = module:get_option("default_archive_policy", false);
 

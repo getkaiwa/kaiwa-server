@@ -3,7 +3,7 @@
 --
 -- This file is MIT/X11 licensed.
 
-local xmlns_mam     = "urn:xmpp:mam:tmp";
+local xmlns_mam     = "urn:xmpp:mam:0";
 local xmlns_delay   = "urn:xmpp:delay";
 local xmlns_forward = "urn:xmpp:forward:0";
 
@@ -39,10 +39,10 @@ local archive_store = "archive2";
 local archive = module:open_store(archive_store, "archive");
 if not archive or archive.name == "null" then
 	module:log("error", "Could not open archive storage");
-	return
+	return;
 elseif not archive.find then
-	module:log("error", "mod_%s does not support archiving, switch to mod_storage_sql2", archive._provided_by);
-	return
+	module:log("error", "mod_%s does not support archiving", archive._provided_by);
+	return;
 end
 
 -- Handle prefs.
@@ -52,16 +52,18 @@ module:hook("iq/self/"..xmlns_mam..":prefs", function(event)
 	if stanza.attr.type == "get" then
 		local prefs = prefs_to_stanza(get_prefs(user));
 		local reply = st.reply(stanza):add_child(prefs);
-		return origin.send(reply);
+		origin.send(reply);
 	else -- type == "set"
 		local new_prefs = stanza:get_child("prefs", xmlns_mam);
 		local prefs = prefs_from_stanza(new_prefs);
 		local ok, err = set_prefs(user, prefs);
 		if not ok then
-			return origin.send(st.error_reply(stanza, "cancel", "internal-server-error", "Error storing preferences: "..tostring(err)));
+			origin.send(st.error_reply(stanza, "cancel", "internal-server-error", "Error storing preferences: "..tostring(err)));
+		else
+			origin.send(st.reply(stanza));
 		end
-		return origin.send(st.reply(stanza));
 	end
+	return true;
 end);
 
 local query_form = dataform {
@@ -74,25 +76,35 @@ local query_form = dataform {
 -- Serve form
 module:hook("iq-get/self/"..xmlns_mam..":query", function(event)
 	local origin, stanza = event.origin, event.stanza;
-	return origin.send(st.reply(stanza):add_child(query_form:form()));
+	origin.send(st.reply(stanza):add_child(query_form:form()));
+	return true;
 end);
 
 -- Handle archive queries
-module:hook("iq/self/"..xmlns_mam..":query", function(event)
+module:hook("iq-set/self/"..xmlns_mam..":query", function(event)
 	local origin, stanza = event.origin, event.stanza;
 	local query = stanza.tags[1];
 	local qid = query.attr.queryid;
 
 	-- Search query parameters
-	local qwith = query:get_child_text("with");
-	local qstart = query:get_child_text("start");
-	local qend = query:get_child_text("end");
+	local qwith, qstart, qend;
+	local form = query:get_child("x", "jabber:x:data");
+	if form then
+		local err;
+		form, err = query_form:data(form);
+		if err then
+			origin.send(st.error_reply(stanza, "modify", "bad-request", select(2, next(err))));
+			return true;
+		end
+		qwith, qstart, qend = form["with"], form["start"], form["end"];
+		qwith = qwith and jid_bare(qwith); -- dataforms does jidprep
+	end
 
 	if qstart or qend then -- Validate timestamps
-		local vstart, vend = (qstart and timestamp_parse(qstart)), (qend and timestamp_parse(qend))
+		local vstart, vend = (qstart and timestamp_parse(qstart)), (qend and timestamp_parse(qend));
 		if (qstart and not vstart) or (qend and not vend) then
 			origin.send(st.error_reply(stanza, "modify", "bad-request", "Invalid timestamp"))
-			return true
+			return true;
 		end
 		qstart, qend = vstart, vend;
 	end
@@ -109,28 +121,37 @@ module:hook("iq/self/"..xmlns_mam..":query", function(event)
 
 
 	-- Load all the data!
-	local query = {
+	local data, err = archive:find(origin.username, {
 		start = qstart; ["end"] = qend; -- Time range
 		with = qwith;
-		limit = qmax;
+		limit = qmax + 1;
 		before = before; after = after;
 		reverse = reverse;
 		total = true;
-	}
-	module:log("debug", require"util.serialization".serialize(query));
-	local data, err = archive:find(origin.username, query);
+	});
 
 	if not data then
-		return origin.send(st.error_reply(stanza, "cancel", "internal-server-error", err));
+		origin.send(st.error_reply(stanza, "cancel", "internal-server-error", err));
+		return true;
 	end
-	local count = err;
+	local total = m_min(err, qmax);
 
+	origin.send(st.reply(stanza));
 	local msg_reply_attr = { to = stanza.attr.from, from = stanza.attr.to };
 
+	local results = {};
+
 	-- Wrap it in stuff and deliver
-	local fwd_st, first, last;
+	local first, last;
+	local count = 0;
+	local complete = "true";
 	for id, item, when in data do
-		fwd_st = st.message(msg_reply_attr)
+		count = count + 1;
+		if count > qmax then
+			complete = nil;
+			break;
+		end
+		local fwd_st = st.message(msg_reply_attr)
 			:tag("result", { xmlns = xmlns_mam, queryid = qid, id = id })
 				:tag("forwarded", { xmlns = xmlns_forward })
 					:tag("delay", { xmlns = xmlns_delay, stamp = timestamp(when) }):up();
@@ -144,19 +165,27 @@ module:hook("iq/self/"..xmlns_mam..":query", function(event)
 		if not first then first = id; end
 		last = id;
 
-		origin.send(fwd_st);
+		if reverse then
+			results[count] = fwd_st;
+		else
+		  origin.send(fwd_st);
+		end
 	end
+	if reverse then
+		for i = #results, 1, -1 do
+			origin.send(results[i]);
+		end
+	end
+
 	-- That's all folks!
 	module:log("debug", "Archive query %s completed", tostring(qid));
 
 	if reverse then first, last = last, first; end
-
-	local reply = st.reply(stanza);
-	reply:query(xmlns_mam)
-		:add_child(rsm.generate {
-			first = first, last = last, count = count });
-	origin.send(reply);
-	return true
+	origin.send(st.message(msg_reply_attr)
+		:tag("fin", { xmlns = xmlns_mam, queryid = qid, complete = complete })
+			:add_child(rsm.generate {
+				first = first, last = last, count = total }));
+	return true;
 end);
 
 local function has_in_roster(user, who)
@@ -169,21 +198,21 @@ local function shall_store(user, who)
 	-- TODO Cache this?
 	local prefs = get_prefs(user);
 	local rule = prefs[who];
-	module:log("debug", "%s's rule for %s is %s", user, who, tostring(rule))
+	module:log("debug", "%s's rule for %s is %s", user, who, tostring(rule));
 	if rule ~= nil then
 		return rule;
-	else -- Below could be done by a metatable
-		local default = prefs[false];
-		module:log("debug", "%s's default rule is %s", user, tostring(default))
-		if default == nil then
-			default = global_default_policy;
-			module:log("debug", "Using global default rule, %s", tostring(default))
-		end
-		if default == "roster" then
-			return has_in_roster(user, who);
-		end
-		return default;
 	end
+	-- Below could be done by a metatable
+	local default = prefs[false];
+	module:log("debug", "%s's default rule is %s", user, tostring(default));
+	if default == nil then
+		default = global_default_policy;
+		module:log("debug", "Using global default rule, %s", tostring(default));
+	end
+	if default == "roster" then
+		return has_in_roster(user, who);
+	end
+	return default;
 end
 
 -- Handle messages
@@ -194,16 +223,17 @@ local function message_handler(event, c2s)
 	local orig_to = stanza.attr.to or orig_from;
 	-- Stanza without 'to' are treated as if it was to their own bare jid
 
-	-- We don't store messages of these types
-	if orig_type == "error"
-	or orig_type == "headline"
-	or orig_type == "groupchat"
-	-- or that don't have a <body/>
-	or not stanza:get_child("body")
+	-- We store chat messages or normal messages that have a body
+	if not( (orig_type == "chat" or orig_type == "normal") and stanza:get_child("body") ) then
+		module:log("debug", "Not archiving stanza: %s (type)", stanza:top_tag());
+		return;
+	end
 	-- or if hints suggest we shouldn't
+	if stanza:get_child("no-permanent-storage", "urn:xmpp:hints") -- The XEP needs to decide on "store" or "storage"
 	or stanza:get_child("no-permanent-store", "urn:xmpp:hints")
+	or stanza:get_child("no-storage", "urn:xmpp:hints")
 	or stanza:get_child("no-store", "urn:xmpp:hints") then
-		module:log("debug", "Not archiving stanza: %s (content)", stanza:top_tag());
+		module:log("debug", "Not archiving stanza: %s (hint)", stanza:top_tag());
 		return;
 	end
 
@@ -215,12 +245,11 @@ local function message_handler(event, c2s)
 	-- Check with the users preferences
 	if shall_store(store_user, with) then
 		module:log("debug", "Archiving stanza: %s", stanza:top_tag());
-		module:log("debug", "Save archive: %s", store_user);
 
 		-- And stash it
 		local ok, id = archive:append(store_user, nil, time_now(), with, stanza);
-		if not stanza:get_child("delay", xmlns_delay) then
-			stanza:tag("delay", { xmlns = xmlns_delay, from = orig_from, stamp = timestamp(time_now()) }):up();
+		if ok then
+			module:fire_event("archive-message-added", { origin = origin, stanza = stanza, for_user = store_user, id = id });
 		end
 	else
 		module:log("debug", "Not archiving stanza: %s (prefs)", stanza:top_tag());
@@ -238,5 +267,8 @@ module:hook("pre-message/full", c2s_message_handler, 2);
 module:hook("message/bare", message_handler, 2);
 module:hook("message/full", message_handler, 2);
 
-module:add_feature(xmlns_mam);
+module:add_feature(xmlns_mam); -- COMPAT with XEP-0313 v 0.1
 
+module:hook("account-disco-info", function(event)
+	event.reply:tag("feature", {var=xmlns_mam}):up();
+end);

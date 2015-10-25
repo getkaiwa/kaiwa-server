@@ -37,7 +37,7 @@ RUN locale-gen en_US && locale-gen en_US.UTF-8 && echo 'LANG="en_US.UTF-8"' > /e
 RUN add-apt-repository -y ppa:patrick-georgi/ppa
 RUN apt-get update
 
-RUN apt-get install -y --force-yes postgresql-client lua5.1 liblua5.1-dev lua-bitop lua-bitop-dev lua-sec lua-ldap lua-dbi-postgresql lua-expat lua-socket lua-filesystem lua-zlib lua-event libidn11-dev libssl-dev mercurial make openssl
+RUN apt-get install -y --force-yes postgresql-client lua5.1 liblua5.1-dev lua-bitop lua-bitop-dev lua-sec lua-ldap lua-dbi-postgresql lua-expat lua-socket lua-filesystem lua-zlib lua-event libidn11-dev libssl-dev mercurial bsdmainutils make openssl
 
 RUN groupadd prosody
 RUN useradd -g prosody prosody
