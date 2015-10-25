@@ -88,7 +88,7 @@ $ docker run -d \
 
         add-apt-repository -y ppa:patrick-georgi/ppa
         apt-get update
-        apt-get install postgresql-client lua5.1 liblua5.1-dev lua-bitop lua-bitop-dev lua-sec lua-ldap lua-dbi-postgresql lua-expat lua-socket lua-filesystem lua-zlib lua-event libidn11-dev libssl-dev mercurial make openssl
+        apt-get install postgresql-client lua5.1 liblua5.1-dev lua-bitop lua-bitop-dev lua-sec lua-ldap lua-dbi-postgresql lua-expat lua-socket lua-filesystem lua-zlib lua-event libidn11-dev libssl-dev mercurial bsdmainutils make openssl
 
 2. Install Prosody from sources
 
