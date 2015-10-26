@@ -3,7 +3,7 @@
 Any XMPP server that supports websockets would work, but Prosody also supports
 some extra features that makes Kaiwa nicer to use, like message archiving.
 
-It works with PostgreSQL (LDAP optionally).
+It works with PostgreSQL (and LDAP optionally).
 
 ## Installation with Docker
 
