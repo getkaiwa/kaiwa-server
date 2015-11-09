@@ -53,7 +53,9 @@ It works with PostgreSQL (and LDAP optionally).
              -e DB_NAME=kaiwa \
              -e DB_USER=kaiwa \
              -e DB_PWD=mypassword \
-             -e LDAP_BASE=dc=myorga \
+             -e LDAP_HOST=container \
+             -e LDAP_USER_BASE=ou=users,dc=myorga \
+             -e LDAP_GROUP_BASE=ou=groups,dc=myorga \
              -e LDAP_DN=cn=admin,dc=myorga \
              -e LDAP_PWD=mypassword \
              -e LDAP_GROUP=myorgagroup \
@@ -75,7 +77,9 @@ It works with PostgreSQL (and LDAP optionally).
              -e XMPP_MUC=chat.myorga.com \
              -e XMPP_STARTUP=groupchat/home%40chat.myorga.com \
              -e XMPP_ADMIN=admin \
-             -e LDAP_BASE=dc=myorga \
+             -e LDAP_HOST=container \
+             -e LDAP_USER_BASE=ou=users,dc=myorga \
+             -e LDAP_GROUP_BASE=ou=groups,dc=myorga \
              -e LDAP_DN=cn=admin,dc=myorga \
              -e LDAP_PWD=mypassword \
              -e LDAP_GROUP=myorgagroup \
