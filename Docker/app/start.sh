@@ -5,7 +5,8 @@
 #  - DB_USER
 #  - DB_PWD
 #  - LDAP_HOST
-#  - LDAP_BASE
+#  - LDAP_USER_BASE
+#  - LDAP_GROUP_BASE
 #  - LDAP_DN
 #  - LDAP_PWD
 #  - LDAP_GROUP
