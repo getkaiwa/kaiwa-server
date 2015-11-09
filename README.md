@@ -8,8 +8,7 @@ It works with PostgreSQL (and LDAP optionally).
 ## Installation with Docker
 
 1. Start a PostgreSQL Docker image
-
-        ```bash
+```bash
         $ docker pull orchardup/postgresql
         $ docker run -d \
              --name postgres \
@@ -17,11 +16,10 @@ It works with PostgreSQL (and LDAP optionally).
              -e POSTGRESQL_USER=kaiwa \
              -e POSTGRESQL_PASS=mypassword \
              orchardup/postgresql
-        ```
+```
 
 2. Start and configure an LDAP Docker image (optional)
-
-        ```bash
+```bash
         $ docker pull nickstenning/slapd
         $ docker run -d \
              --name ldap \
@@ -39,13 +37,12 @@ It works with PostgreSQL (and LDAP optionally).
         $ sed 's/ExampleDesc/MyOrgaDesc/' -i users.ldif
         $ sed 's/user1/bob/' -i users.ldif
         $ ldapadd -h localhost -x -D cn=admin,dc=myorga -w mypassword -f users.ldif
-        ```
+```
 
 3. Start a Kaiwa-server Docker image
 
     LDAP params are not mandatory
-    
-        ```bash
+```bash
         $ docker pull sebu77/kaiwa-server
         $ docker run -d \
              -p 5222:5222 -p 5269:5269 -p 5280:5280 -p 5281:5281 -p 3478:3478/udp \
@@ -61,13 +58,12 @@ It works with PostgreSQL (and LDAP optionally).
              -e LDAP_PWD=mypassword \
              -e LDAP_GROUP=myorgagroup \
              sebu77/kaiwa-server
-        ```
+```
 
 4. Start a Kaiwa Docker image
 
     LDAP params are not mandatory
-
-        ```bash
+```bash
         $ docker pull sebu77/kaiwa
         $ docker run -d \
              -p 80:8000 \
@@ -84,7 +80,7 @@ It works with PostgreSQL (and LDAP optionally).
              -e LDAP_PWD=mypassword \
              -e LDAP_GROUP=myorgagroup \
              sebu77/kaiwa
-        ```
+```
 
 ## Installation from source
 
