@@ -11,13 +11,12 @@ It works with PostgreSQL (and LDAP optionally).
 
 1. Start a PostgreSQL Docker image
 ```bash
-        $ docker pull orchardup/postgresql
+        $ docker pull library/postgres
         $ docker run -d \
              --name postgres \
-             -p 5432:5432 \
-             -e POSTGRESQL_USER=kaiwa \
-             -e POSTGRESQL_PASS=mypassword \
-             orchardup/postgresql
+             -e POSTGRES_USER=kaiwa \
+             -e POSTGRES_PASSWORD=mypassword \
+             library/postgres
 ```
 
 2. Start and configure an LDAP Docker image (optional)
